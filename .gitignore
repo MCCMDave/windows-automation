@@ -1,0 +1,35 @@
+# PowerShell
+*.log
+*.tmp
+transcript*.txt
+
+# Windows
+Thumbs.db
+desktop.ini
+*.lnk
+$RECYCLE.BIN/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# User-specific config (if sensitive)
+# Uncomment if config contains sensitive data:
+# update-config.json
+
+# Logs and output
+logs/
+*.log
+update-*.log
+error-*.log
+
+# Testing
+test-results/
+*.test.log

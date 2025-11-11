@@ -1,0 +1,87 @@
+{
+  "version": "2.1",
+  "lastUpdated": "2025-11-02",
+  "settings": {
+    "autoUpdateWinget": true,
+    "autoUpdateChocolatey": true,
+    "checkWindowsUpdate": true,
+    "checkMicrosoftStore": true,
+    "checkHardwareDrivers": true,
+    "createBackupBeforeUpdate": false,
+    "restartAfterUpdate": false,
+    "logLevel": "INFO",
+    "maxLogSizeMB": 10
+  },
+  "updateSources": {
+    "winget": {
+      "enabled": true,
+      "autoAccept": false,
+      "excludePackages": [],
+      "comment": "autoAccept: false = Benutzer wird vor jedem Update gefragt"
+    },
+    "chocolatey": {
+      "enabled": true,
+      "autoAccept": false,
+      "excludePackages": [],
+      "comment": "autoAccept: false = Benutzer wird vor jedem Update gefragt"
+    },
+    "windowsUpdate": {
+      "enabled": true,
+      "includeDrivers": true,
+      "includeOptional": false,
+      "comment": "includeDrivers: true = Treiber-Updates werden mit installiert"
+    },
+    "microsoftStore": {
+      "enabled": true,
+      "autoUpdate": false,
+      "comment": "autoUpdate: false = Store oeffnet sich nur, Update manuell"
+    }
+  },
+  "hardwareVendors": {
+    "nvidia": {
+      "enabled": true,
+      "geforceExperiencePath": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA GeForce Experience\\NVIDIA GeForce Experience.exe",
+      "alternativePaths": [
+        "C:\\Program Files (x86)\\NVIDIA Corporation\\NVIDIA GeForce Experience\\NVIDIA GeForce Experience.exe",
+        "C:\\Program Files\\NVIDIA\\GeForce Experience\\NVIDIA GeForce Experience.exe"
+      ],
+      "comment": "Wird nur genutzt wenn NVIDIA-Grafikkarte erkannt wird"
+    },
+    "intel": {
+      "enabled": true,
+      "dsaPath": "C:\\Program Files (x86)\\Intel\\Driver and Support Assistant\\DSATray.exe",
+      "alternativePaths": [
+        "C:\\Program Files\\Intel\\Driver and Support Assistant\\DSATray.exe",
+        "C:\\Program Files (x86)\\Intel\\Driver & Support Assistant\\DSATray.exe",
+        "C:\\Program Files\\Intel\\Driver & Support Assistant\\DSATray.exe",
+        "C:\\Intel\\Driver and Support Assistant\\DSATray.exe"
+      ],
+      "comment": "HINWEIS: Falls Intel DSA installiert ist aber nicht gefunden wird, passe hier den Pfad an!",
+      "howToFindPath": "1. Startmenue -> 'Intel Driver' suchen -> Rechtsklick -> Dateispeicherort oeffnen -> Eigenschaften -> Ziel kopieren",
+      "dsaDownloadUrl": "https://www.intel.com/content/www/us/en/support/detect.html"
+    },
+    "msi": {
+      "enabled": true,
+      "centerPath": "C:\\Program Files (x86)\\MSI\\MSI Center\\MSICenter.exe",
+      "alternativePaths": [
+        "C:\\Program Files\\MSI\\MSI Center\\MSICenter.exe",
+        "C:\\MSI\\MSI Center\\MSICenter.exe"
+      ],
+      "downloadUrl": "https://www.msi.com/Landing/msi-center",
+      "comment": "Wird nur genutzt wenn MSI-Mainboard erkannt wird"
+    }
+  },
+  "notifications": {
+    "enabled": true,
+    "showOnCompletion": true,
+    "showOnError": true,
+    "comment": "Feature fuer v2.2 geplant - noch nicht implementiert"
+  },
+  "schedule": {
+    "enabled": false,
+    "frequency": "weekly",
+    "day": "Sunday",
+    "time": "03:00",
+    "comment": "Feature fuer v2.2 geplant - noch nicht implementiert"
+  }
+}
