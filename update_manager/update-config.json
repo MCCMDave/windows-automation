@@ -26,9 +26,9 @@
   "hardwareVendors": {
     "nvidia": {
       "enabled": true,
-      "nvidiaAppPath": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NVIDIAApp.exe",
+      "nvidiaAppPath": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
       "nvidiaAppAlternativePaths": [
-        "C:\\Program Files (x86)\\NVIDIA Corporation\\NVIDIA App\\NVIDIAApp.exe"
+        "C:\\Program Files (x86)\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe"
       ],
       "geforceExperiencePath": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA GeForce Experience\\NVIDIA GeForce Experience.exe",
       "alternativePaths": [

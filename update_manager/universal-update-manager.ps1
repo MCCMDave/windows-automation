@@ -520,8 +520,8 @@ function Update-NVIDIA {
     try {
         # NVIDIA App (neu, ab 2024) - hat Prioritaet
         $nvidiaAppPaths = @(
-            "C:\Program Files\NVIDIA Corporation\NVIDIA App\NVIDIAApp.exe",
-            "C:\Program Files (x86)\NVIDIA Corporation\NVIDIA App\NVIDIAApp.exe"
+            "C:\Program Files\NVIDIA Corporation\NVIDIA App\CEF\NVIDIA App.exe",
+            "C:\Program Files (x86)\NVIDIA Corporation\NVIDIA App\CEF\NVIDIA App.exe"
         )
 
         if ($Global:Config -and $Global:Config.hardwareVendors.nvidia.nvidiaAppPath) {
