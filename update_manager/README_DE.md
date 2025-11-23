@@ -8,7 +8,7 @@ Deutsche Version | **[English Version](README.md)**
 **Plattform:** Windows 10/11
 **Sprache:** PowerShell
 
-> Dieses Projekt wurde mit KI-Unterstuetzung (Claude) entwickelt und dient auch als Lernprojekt zum besseren Verstaendnis von PowerShell-Automatisierung.
+> Dieses Projekt wurde mit KI-Unterstützung (Claude) entwickelt und dient auch als Lernprojekt zum besseren Verständnis von PowerShell-Automatisierung.
 
 ---
 
@@ -29,13 +29,13 @@ Ein umfassender Windows-Update-Manager, der Updates aus mehreren Quellen in eine
 ### Hardware-Auto-Erkennung:
 - **CPU-Hersteller** - Intel, AMD
 - **GPU-Hersteller** - NVIDIA (App + GeForce Experience), AMD, Intel
-- **Mainboard** - MSI Center Unterstuetzung
+- **Mainboard** - MSI Center Unterstützung
 - **Automatische Treiber-Auswahl** - Aktualisiert nur relevante Hardware
 
 ### Konfiguration:
 - **JSON-basiert** - Einfach anzupassen
 - **Flexibel** - Komponenten einzeln aktivieren/deaktivieren
-- **KISS-Prinzip** - Nur Einstellungen die tatsaechlich genutzt werden
+- **KISS-Prinzip** - Nur Einstellungen die tatsächlich genutzt werden
 
 ---
 
@@ -43,18 +43,18 @@ Ein umfassender Windows-Update-Manager, der Updates aus mehreren Quellen in eine
 
 ### Voraussetzungen:
 - Windows 10/11
-- PowerShell 5.1 oder hoeher
+- PowerShell 5.1 oder höher
 - Administrator-Rechte
 
 ### Schnellstart:
 1. Alle Dateien in einen Ordner herunterladen
 2. Doppelklick auf `universal-update-manager.bat`
-3. Admin-Erhoehung bestaetigen
-4. Option aus Menue waehlen
+3. Admin-Erhöhung bestätigen
+4. Option aus Menü wählen
 
-### Manuelle Ausfuehrung:
+### Manuelle Ausführung:
 ```powershell
-# Als Administrator ausfuehren
+# Als Administrator ausführen
 .\universal-update-manager.ps1
 ```
 
@@ -82,7 +82,7 @@ Ein umfassender Windows-Update-Manager, der Updates aus mehreren Quellen in eine
 
 ### Komponenten aktivieren/deaktivieren:
 - `enabled` auf `true` oder `false` setzen
-- Konfiguration bleibt ueber Ausfuehrungen hinweg erhalten
+- Konfiguration bleibt über Ausführungen hinweg erhalten
 
 ---
 
@@ -90,7 +90,7 @@ Ein umfassender Windows-Update-Manager, der Updates aus mehreren Quellen in eine
 
 | Hersteller | Tool | Hinweise |
 |------------|------|----------|
-| **NVIDIA** | NVIDIA App (Prioritaet) oder GeForce Experience | Auto-erkannt |
+| **NVIDIA** | NVIDIA App (Priorität) oder GeForce Experience | Auto-erkannt |
 | **Intel** | Intel Driver & Support Assistant | Auto-erkannt |
 | **MSI** | MSI Center | Mainboard auto-erkannt |
 
@@ -109,7 +109,7 @@ Logs werden gespeichert in:
 
 ```
 update_manager/
-├── universal-update-manager.bat    # Starter (Admin-Erhoehung)
+├── universal-update-manager.bat    # Starter (Admin-Erhöhung)
 ├── universal-update-manager.ps1    # Haupt-Script
 ├── update-config.json              # Konfiguration
 ├── README.md                       # Englische Dokumentation
@@ -121,14 +121,14 @@ update_manager/
 ## Changelog
 
 ### v2.2 (23.11.2025)
-- NVIDIA App Support hinzugefuegt (ersetzt GeForce Experience)
+- NVIDIA App Support hinzugefügt (ersetzt GeForce Experience)
 - Hardware-Vendor `enabled`-Flags werden jetzt beachtet
-- Config aufgeraeumt (KISS-Prinzip)
+- Config aufgeräumt (KISS-Prinzip)
 - Log-Pfad nach `%LOCALAPPDATA%\UpdateManager` verschoben
-- Vereinfachte Voraussetzungspruefung
+- Vereinfachte Voraussetzungsprüfung
 
 ### v2.1 (02.11.2025)
-- Config-Settings werden jetzt tatsaechlich genutzt
+- Config-Settings werden jetzt tatsächlich genutzt
 - PSWindowsUpdate Modul-Check beim Start
 - Sonderzeichen-Fixes
 - Verbesserte Fehlerbehandlung
