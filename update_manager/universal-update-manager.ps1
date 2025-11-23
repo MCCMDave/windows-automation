@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Universal Update Manager v2.1 - Zentrale Update-Verwaltung für Windows
-    
+    Universal Update Manager v2.2 - Zentrale Update-Verwaltung fuer Windows
+
 .DESCRIPTION
     Vereint alle Update-Quellen in einem Script:
     - Winget (Desktop-Apps)
@@ -9,21 +9,26 @@
     - Windows Update (OS & Sicherheit)
     - Microsoft Store Apps
     - Hersteller-Updates (NVIDIA, Intel, MSI)
-    
+
 .NOTES
     Autor: Dave
-    Datum: 02.11.2025
-    Version: 2.1
+    Datum: 23.11.2025
+    Version: 2.2
     Projekt: Homelab & System-Verwaltung
-    
+
 .CHANGELOG
+    v2.2 (23.11.2025):
+    - NVIDIA App Support hinzugefuegt (ersetzt GeForce Experience)
+    - Hardware-Vendor enabled-Flags werden jetzt beachtet
+    - Config aufgeraeumt (KISS-Prinzip)
+    - Log-Pfad nach %LOCALAPPDATA%\UpdateManager verschoben
+    - Vereinfachte Voraussetzungspruefung
+
     v2.1 (02.11.2025):
-    - Config-Settings werden jetzt tatsächlich genutzt
+    - Config-Settings werden jetzt tatsaechlich genutzt
     - PSWindowsUpdate Modul-Check beim Start
     - Sonderzeichen-Fixes (Coding Guidelines)
     - Bessere Fehlerbehandlung
-    - Code-Optimierungen
-    - Logging verbessert
 #>
 
 #Requires -RunAsAdministrator
@@ -33,8 +38,10 @@
 # ============================================
 
 $ErrorActionPreference = "Continue"
-$ScriptVersion = "2.1"
-$LogFile = "$env:USERPROFILE\Desktop\universal-update-manager.log"
+$ScriptVersion = "2.2"
+$LogDir = "$env:LOCALAPPDATA\UpdateManager"
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+$LogFile = "$LogDir\universal-update-manager.log"
 $ConfigFile = "$PSScriptRoot\update-config.json"
 
 # Farben
@@ -106,41 +113,21 @@ function Load-Config {
 
 function Test-Prerequisites {
     Write-Log "Pruefe Voraussetzungen..." "INFO"
-    
-    $issues = @()
-    
-    # PSWindowsUpdate Modul prüfen
-    if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) {
-        $issues += "PSWindowsUpdate Modul nicht installiert"
-        Write-Log "PSWindowsUpdate Modul fehlt!" "WARNING"
-        Write-Host "`nHINWEIS: Fuer Windows Updates wird das PSWindowsUpdate Modul benoetigt." -ForegroundColor $ColorWarning
-        Write-Host "Installation: Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser`n" -ForegroundColor $ColorInfo
-    } else {
-        Write-Log "PSWindowsUpdate Modul vorhanden" "SUCCESS"
-    }
-    
-    # Internet-Verbindung prüfen
+
+    # Internet-Verbindung pruefen (kritisch)
     if (-not (Test-InternetConnection)) {
-        $issues += "Keine Internet-Verbindung"
         Write-Log "Keine Internet-Verbindung!" "ERROR"
-    } else {
-        Write-Log "Internet-Verbindung OK" "SUCCESS"
-    }
-    
-    # Winget prüfen
-    if (-not (Test-WingetAvailable)) {
-        $issues += "Winget nicht verfuegbar"
-        Write-Log "Winget nicht gefunden!" "WARNING"
-    } else {
-        Write-Log "Winget verfuegbar" "SUCCESS"
-    }
-    
-    if ($issues.Count -gt 0) {
-        Write-Log "Einige Voraussetzungen fehlen, Script laeuft trotzdem weiter" "WARNING"
         return $false
     }
-    
-    Write-Log "Alle Voraussetzungen erfuellt!" "SUCCESS"
+    Write-Log "Internet-Verbindung OK" "SUCCESS"
+
+    # Winget pruefen (optional)
+    if (Test-WingetAvailable) {
+        Write-Log "Winget verfuegbar" "SUCCESS"
+    } else {
+        Write-Log "Winget nicht gefunden" "WARNING"
+    }
+
     return $true
 }
 
@@ -511,31 +498,58 @@ function Update-MicrosoftStore {
 
 function Update-NVIDIA {
     param($Hardware)
-    
+
     if (-not $Hardware.HasNVIDIA) {
         Write-Log "Keine NVIDIA-Grafikkarte erkannt. Ueberspringe..." "INFO"
         return
     }
-    
+
+    # Config enabled-Check
+    if ($Global:Config -and -not $Global:Config.hardwareVendors.nvidia.enabled) {
+        Write-Log "NVIDIA-Updates sind in der Config deaktiviert" "INFO"
+        return
+    }
+
     Write-Host "`n"
     Write-Host "============================================" -ForegroundColor $ColorHeader
-    Write-Host "NVIDIA GEFORCE EXPERIENCE" -ForegroundColor $ColorHeader
+    Write-Host "NVIDIA TREIBER-UPDATE" -ForegroundColor $ColorHeader
     Write-Host "============================================`n" -ForegroundColor $ColorHeader
-    
+
     Write-Log "Pruefe NVIDIA-Treiber..." "INFO"
-    
+
     try {
-        # Pfade aus Config laden
-        $nvidiaPaths = @(
+        # NVIDIA App (neu, ab 2024) - hat Prioritaet
+        $nvidiaAppPaths = @(
+            "C:\Program Files\NVIDIA Corporation\NVIDIA App\NVIDIAApp.exe",
+            "C:\Program Files (x86)\NVIDIA Corporation\NVIDIA App\NVIDIAApp.exe"
+        )
+
+        if ($Global:Config -and $Global:Config.hardwareVendors.nvidia.nvidiaAppPath) {
+            $nvidiaAppPaths = @($Global:Config.hardwareVendors.nvidia.nvidiaAppPath) + $Global:Config.hardwareVendors.nvidia.nvidiaAppAlternativePaths
+        }
+
+        foreach ($path in $nvidiaAppPaths) {
+            if (Test-Path $path) {
+                Write-Host "Starte NVIDIA App..." -ForegroundColor $ColorInfo
+                Start-Process $path -ErrorAction SilentlyContinue
+                Write-Host "NVIDIA App gestartet!" -ForegroundColor $ColorSuccess
+                Write-Host "Pruefe auf Treiber-Updates unter 'Treiber'.`n" -ForegroundColor $ColorInfo
+                Write-Log "NVIDIA App gestartet: $path" "SUCCESS"
+                return
+            }
+        }
+
+        # Fallback: GeForce Experience (Legacy)
+        $gfePaths = @(
             "C:\Program Files\NVIDIA Corporation\NVIDIA GeForce Experience\NVIDIA GeForce Experience.exe",
             "C:\Program Files (x86)\NVIDIA Corporation\NVIDIA GeForce Experience\NVIDIA GeForce Experience.exe"
         )
-        
+
         if ($Global:Config -and $Global:Config.hardwareVendors.nvidia.geforceExperiencePath) {
-            $nvidiaPaths = @($Global:Config.hardwareVendors.nvidia.geforceExperiencePath) + $Global:Config.hardwareVendors.nvidia.alternativePaths
+            $gfePaths = @($Global:Config.hardwareVendors.nvidia.geforceExperiencePath) + $Global:Config.hardwareVendors.nvidia.alternativePaths
         }
-        
-        foreach ($path in $nvidiaPaths) {
+
+        foreach ($path in $gfePaths) {
             if (Test-Path $path) {
                 Write-Host "Starte NVIDIA GeForce Experience..." -ForegroundColor $ColorInfo
                 Start-Process $path -ErrorAction SilentlyContinue
@@ -545,11 +559,11 @@ function Update-NVIDIA {
                 return
             }
         }
-        
-        Write-Host "NVIDIA GeForce Experience nicht gefunden.`n" -ForegroundColor $ColorWarning
-        Write-Host "Download: https://www.nvidia.com/de-de/geforce/geforce-experience/`n" -ForegroundColor $ColorInfo
-        Write-Log "NVIDIA GeForce Experience nicht gefunden" "WARNING"
-        
+
+        Write-Host "Weder NVIDIA App noch GeForce Experience gefunden.`n" -ForegroundColor $ColorWarning
+        Write-Host "Download NVIDIA App: https://www.nvidia.com/de-de/software/nvidia-app/`n" -ForegroundColor $ColorInfo
+        Write-Log "NVIDIA App/GeForce Experience nicht gefunden" "WARNING"
+
     } catch {
         Write-Log "Fehler bei NVIDIA-Update: $($_.Exception.Message)" "ERROR"
         Write-Host "FEHLER: $($_.Exception.Message)`n" -ForegroundColor $ColorError
@@ -558,9 +572,15 @@ function Update-NVIDIA {
 
 function Update-Intel {
     param($Hardware)
-    
+
     if (-not $Hardware.HasIntel) {
         Write-Log "Kein Intel-Prozessor erkannt. Ueberspringe..." "INFO"
+        return
+    }
+
+    # Config enabled-Check
+    if ($Global:Config -and -not $Global:Config.hardwareVendors.intel.enabled) {
+        Write-Log "Intel-Updates sind in der Config deaktiviert" "INFO"
         return
     }
     
@@ -615,9 +635,15 @@ function Update-Intel {
 
 function Update-MSI {
     param($Hardware)
-    
+
     if (-not $Hardware.HasMSI) {
         Write-Log "Kein MSI-Mainboard erkannt. Ueberspringe..." "INFO"
+        return
+    }
+
+    # Config enabled-Check
+    if ($Global:Config -and -not $Global:Config.hardwareVendors.msi.enabled) {
+        Write-Log "MSI-Updates sind in der Config deaktiviert" "INFO"
         return
     }
     
