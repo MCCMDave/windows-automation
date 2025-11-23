@@ -103,6 +103,8 @@ Logs werden gespeichert in:
 %LOCALAPPDATA%\UpdateManager\universal-update-manager.log
 ```
 
+**Log-Rotation:** Wenn das Log 5 MB überschreitet, wird es automatisch archiviert. Nur die letzten 3 Archive werden behalten.
+
 ---
 
 ## Datei-Struktur
@@ -125,6 +127,8 @@ update_manager/
 - Hardware-Vendor `enabled`-Flags werden jetzt beachtet
 - Config aufgeräumt (KISS-Prinzip)
 - Log-Pfad nach `%LOCALAPPDATA%\UpdateManager` verschoben
+- Log-Rotation: Archiviert bei > 5 MB, behält letzte 3
+- Zusammenfassung nach "Alle Updates" mit Dauer
 - Vereinfachte Voraussetzungsprüfung
 
 ### v2.1 (02.11.2025)
