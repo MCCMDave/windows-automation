@@ -1,3 +1,6 @@
+# Claude Code local history (never commit)
+claude_history.json
+
 # PowerShell
 *.log
 *.tmp
