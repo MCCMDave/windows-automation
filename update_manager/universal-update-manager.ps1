@@ -43,6 +43,21 @@ $LogDir = "$env:LOCALAPPDATA\UpdateManager"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 $LogFile = "$LogDir\universal-update-manager.log"
 $ConfigFile = "$PSScriptRoot\update-config.json"
+$MaxLogSizeMB = 5
+
+# Log-Rotation: Wenn Log > 5 MB, alte Datei archivieren
+if (Test-Path $LogFile) {
+    $logSize = (Get-Item $LogFile).Length / 1MB
+    if ($logSize -gt $MaxLogSizeMB) {
+        $archiveName = "$LogDir\universal-update-manager_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+        Move-Item $LogFile $archiveName -Force
+        # Nur die letzten 3 Archive behalten
+        Get-ChildItem "$LogDir\universal-update-manager_*.log" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -Skip 3 |
+            Remove-Item -Force
+    }
+}
 
 # Farben
 $ColorSuccess = "Green"
@@ -763,6 +778,7 @@ function Main {
         
         switch ($choice) {
             "1" {
+                $startTime = Get-Date
                 Write-Log "Starte vollstaendiges Update..." "INFO"
                 Update-Winget
                 Update-Chocolatey
@@ -771,8 +787,22 @@ function Main {
                 Update-NVIDIA -Hardware $hardware
                 Update-Intel -Hardware $hardware
                 Update-MSI -Hardware $hardware
+                $duration = (Get-Date) - $startTime
+
+                # Zusammenfassung
+                Write-Host "`n============================================" -ForegroundColor $ColorHeader
+                Write-Host "ZUSAMMENFASSUNG" -ForegroundColor $ColorHeader
+                Write-Host "============================================" -ForegroundColor $ColorHeader
+                Write-Host "Dauer: $([math]::Round($duration.TotalMinutes, 1)) Minuten" -ForegroundColor White
+                Write-Host "Geprueft: Winget, Chocolatey, Windows Update, Store" -ForegroundColor White
+                if ($hardware.HasNVIDIA) { Write-Host "GPU: NVIDIA App geoeffnet" -ForegroundColor $ColorSuccess }
+                if ($hardware.HasIntel) { Write-Host "CPU: Intel DSA geprueft" -ForegroundColor $ColorSuccess }
+                if ($hardware.HasMSI) { Write-Host "Mainboard: MSI Center geoeffnet" -ForegroundColor $ColorSuccess }
+                Write-Host "Log: $LogFile" -ForegroundColor $ColorInfo
+                Write-Host "============================================`n" -ForegroundColor $ColorHeader
+
                 Write-Log "Vollstaendiges Update abgeschlossen!" "SUCCESS"
-                Read-Host "`nDruecke Enter zum Fortfahren"
+                Read-Host "Druecke Enter zum Fortfahren"
             }
             "2" {
                 Update-Winget
