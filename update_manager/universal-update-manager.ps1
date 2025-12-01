@@ -402,6 +402,14 @@ function Update-Windows {
     if (-not (Test-PSWindowsUpdateModule)) {
         Write-Log "PSWindowsUpdate Modul nicht gefunden!" "ERROR"
         Write-Host "PSWindowsUpdate Modul ist nicht installiert!`n" -ForegroundColor $ColorError
+
+        # PowerShell Version anzeigen
+        $psVersion = $PSVersionTable.PSVersion.Major
+        Write-Host "Aktuelle PowerShell Version: $psVersion" -ForegroundColor $ColorInfo
+        if ($psVersion -ge 7) {
+            Write-Host "Hinweis: PowerShell 7+ nutzt eigene Module (nicht kompatibel mit PS 5.1)`n" -ForegroundColor $ColorWarning
+        }
+
         Write-Host "Installation:" -ForegroundColor $ColorInfo
         Write-Host "Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser`n" -ForegroundColor $ColorInfo
         
