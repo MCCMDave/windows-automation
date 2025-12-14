@@ -17,6 +17,11 @@
     Projekt: Homelab & System-Verwaltung
 
 .CHANGELOG
+    v2.3 (14.12.2025):
+    - UTF-8 Encoding Fix (Umlaute werden korrekt dargestellt)
+    - Winget Update-Erkennung robuster (sprachunabhaengig)
+    - Saubere Tabellen-Ausgabe ohne Animation-Zeichen
+
     v2.2 (23.11.2025):
     - NVIDIA App Support hinzugefuegt (ersetzt GeForce Experience)
     - Hardware-Vendor enabled-Flags werden jetzt beachtet
@@ -37,8 +42,12 @@
 # KONFIGURATION
 # ============================================
 
+# UTF-8 Encoding fuer korrekte Umlaut-Darstellung
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $ErrorActionPreference = "Continue"
-$ScriptVersion = "2.2"
+$ScriptVersion = "2.3"
 $LogDir = "$env:LOCALAPPDATA\UpdateManager"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 $LogFile = "$LogDir\universal-update-manager.log"
@@ -280,11 +289,24 @@ function Update-Winget {
         Write-Host "Pruefe auf Updates...`n" -ForegroundColor $ColorInfo
         
         $upgradeList = winget upgrade 2>&1
-        $hasUpdates = $upgradeList -match "upgrades available"
-        
+        # Robuste Erkennung: Zählt Zeilen mit "winget" am Ende (= Update-Einträge)
+        $updates = $upgradeList | Where-Object { $_ -match "winget$" }
+        $updateCount = $updates.Count
+        $hasUpdates = $updateCount -gt 0
+
         if ($hasUpdates) {
-            Write-Host $upgradeList
-            Write-Host "`n"
+            # Kompakte Liste der Updates
+            Write-Host ""
+            Write-Host "$updateCount Updates verfuegbar:" -ForegroundColor $ColorSuccess
+            Write-Host ""
+            foreach ($line in $updates) {
+                # Winget nutzt fixe 44 Zeichen fuer Namen
+                if ($line.Length -ge 44) {
+                    $name = $line.Substring(0, 44).Trim()
+                    Write-Host "  - $name" -ForegroundColor White
+                }
+            }
+            Write-Host ""
             
             # Auto-Accept aus Config?
             $autoAccept = $false
