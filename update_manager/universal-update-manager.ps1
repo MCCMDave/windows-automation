@@ -21,6 +21,8 @@
     - UTF-8 Encoding Fix (Umlaute werden korrekt dargestellt)
     - Winget Update-Erkennung robuster (sprachunabhaengig)
     - Saubere Tabellen-Ausgabe ohne Animation-Zeichen
+    - Chocolatey Pfad-Fix (findet Installation auch ohne PATH)
+    - Logs werden jetzt prepended (neueste oben)
 
     v2.2 (23.11.2025):
     - NVIDIA App Support hinzugefuegt (ersetzt GeForce Experience)
@@ -92,8 +94,13 @@ function Write-Log {
     $LogMessage = "[$Timestamp] [$Level] $Message"
     
     try {
-        # In Datei schreiben
-        Add-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
+        # In Datei schreiben (prepend - neueste oben)
+        if (Test-Path $LogFile) {
+            $existingContent = Get-Content $LogFile -Raw -ErrorAction SilentlyContinue
+            Set-Content -Path $LogFile -Value "$LogMessage`n$existingContent" -ErrorAction SilentlyContinue
+        } else {
+            Set-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
+        }
     } catch {
         # Wenn Logging fehlschlägt, trotzdem weitermachen
         Write-Host "WARNUNG: Logging fehlgeschlagen!" -ForegroundColor Yellow
@@ -235,6 +242,12 @@ function Test-ChocoAvailable {
         $null = Get-Command choco -ErrorAction Stop
         return $true
     } catch {
+        # Fallback: Standard-Installationspfad pruefen
+        if (Test-Path "C:\ProgramData\chocolatey\choco.exe") {
+            # Zum PATH hinzufuegen fuer diese Session
+            $env:Path += ";C:\ProgramData\chocolatey\bin"
+            return $true
+        }
         return $false
     }
 }
@@ -730,7 +743,7 @@ function Show-Menu {
     Clear-Host
     Write-Host "`n"
     Write-Host "============================================" -ForegroundColor $ColorHeader
-    Write-Host "UNIVERSAL UPDATE MANAGER v$ScriptVersion" -ForegroundColor $ColorHeader
+    Write-Host "UNIVERSAL UPDATE MANAGER" -ForegroundColor $ColorHeader
     Write-Host "============================================`n" -ForegroundColor $ColorHeader
     
     Write-Host "1. Alle Updates (Vollstaendig)" -ForegroundColor $ColorInfo
@@ -789,7 +802,7 @@ function Show-SystemInfo {
 function Main {
     # Log-Datei initialisieren
     Write-Log "========================================" "INFO"
-    Write-Log "Universal Update Manager v$ScriptVersion gestartet" "INFO"
+    Write-Log "Update Manager gestartet" "INFO"
     Write-Log "========================================" "INFO"
     
     # Konfiguration laden
