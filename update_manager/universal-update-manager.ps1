@@ -17,6 +17,19 @@
     Projekt: Homelab & System-Verwaltung
 
 .CHANGELOG
+    v2.4 (30.01.2026):
+    - Timeout-Schutz fuer Winget (90s), Chocolatey (90s), Windows Update (120s)
+    - Internet-Check schneller (TCP statt ICMP, 3s Timeout)
+    - Log Append statt Prepend (verhindert Blockieren bei grossen Logs)
+    - Bessere Fehlerbehandlung bei haengenden Prozessen
+
+    v2.3 (14.12.2025):
+    - UTF-8 Encoding Fix (Umlaute werden korrekt dargestellt)
+    - Winget Update-Erkennung robuster (sprachunabhaengig)
+    - Saubere Tabellen-Ausgabe ohne Animation-Zeichen
+    - Chocolatey Pfad-Fix (findet Installation auch ohne PATH)
+    - Logs werden jetzt appended
+
     v2.2 (23.11.2025):
     - NVIDIA App Support hinzugefuegt (ersetzt GeForce Experience)
     - Hardware-Vendor enabled-Flags werden jetzt beachtet
@@ -37,8 +50,12 @@
 # KONFIGURATION
 # ============================================
 
+# UTF-8 Encoding fuer korrekte Umlaut-Darstellung
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $ErrorActionPreference = "Continue"
-$ScriptVersion = "2.2"
+$ScriptVersion = "2.4"
 $LogDir = "$env:LOCALAPPDATA\UpdateManager"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 $LogFile = "$LogDir\universal-update-manager.log"
@@ -83,11 +100,10 @@ function Write-Log {
     $LogMessage = "[$Timestamp] [$Level] $Message"
     
     try {
-        # In Datei schreiben
+        # Append statt Prepend (schneller, blockiert nicht)
         Add-Content -Path $LogFile -Value $LogMessage -ErrorAction SilentlyContinue
     } catch {
-        # Wenn Logging fehlschlägt, trotzdem weitermachen
-        Write-Host "WARNUNG: Logging fehlgeschlagen!" -ForegroundColor Yellow
+        # Wenn Logging fehlschlaegt, trotzdem weitermachen
     }
     
     # Auf Konsole ausgeben
@@ -226,14 +242,29 @@ function Test-ChocoAvailable {
         $null = Get-Command choco -ErrorAction Stop
         return $true
     } catch {
+        # Fallback: Standard-Installationspfad pruefen
+        if (Test-Path "C:\ProgramData\chocolatey\choco.exe") {
+            # Zum PATH hinzufuegen fuer diese Session
+            $env:Path += ";C:\ProgramData\chocolatey\bin"
+            return $true
+        }
         return $false
     }
 }
 
 function Test-InternetConnection {
     try {
-        $result = Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet -ErrorAction Stop
-        return $result
+        # Schneller: TCP statt ICMP, mit 3 Sek Timeout
+        $tcp = New-Object System.Net.Sockets.TcpClient
+        $connect = $tcp.BeginConnect("8.8.8.8", 53, $null, $null)
+        $wait = $connect.AsyncWaitHandle.WaitOne(3000, $false)
+        if ($wait) {
+            $tcp.EndConnect($connect)
+            $tcp.Close()
+            return $true
+        }
+        $tcp.Close()
+        return $false
     } catch {
         return $false
     }
@@ -276,15 +307,43 @@ function Update-Winget {
     Write-Log "Starte Winget Updates..." "INFO"
     
     try {
-        # Prüfe ob Updates verfügbar sind
-        Write-Host "Pruefe auf Updates...`n" -ForegroundColor $ColorInfo
-        
-        $upgradeList = winget upgrade 2>&1
-        $hasUpdates = $upgradeList -match "upgrades available"
-        
+        # Prüfe ob Updates verfügbar sind (mit 90 Sek Timeout)
+        Write-Host "Pruefe auf Updates..." -ForegroundColor $ColorInfo
+
+        $job = Start-Job -ScriptBlock { winget upgrade 2>&1 }
+        $completed = Wait-Job $job -Timeout 90
+
+        if (-not $completed) {
+            Stop-Job $job -ErrorAction SilentlyContinue
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+            Write-Log "Winget Timeout nach 90 Sekunden" "WARNING"
+            Write-Host "`nWinget antwortet nicht (Timeout). Ueberspringe...`n" -ForegroundColor $ColorWarning
+            return
+        }
+
+        $upgradeList = Receive-Job $job
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+
+        Write-Host "" # Neue Zeile nach "Pruefe auf Updates..."
+
+        # Robuste Erkennung: Zählt Zeilen mit "winget" am Ende (= Update-Einträge)
+        $updates = $upgradeList | Where-Object { $_ -match "winget$" }
+        $updateCount = $updates.Count
+        $hasUpdates = $updateCount -gt 0
+
         if ($hasUpdates) {
-            Write-Host $upgradeList
-            Write-Host "`n"
+            # Kompakte Liste der Updates
+            Write-Host ""
+            Write-Host "$updateCount Updates verfuegbar:" -ForegroundColor $ColorSuccess
+            Write-Host ""
+            foreach ($line in $updates) {
+                # Winget nutzt fixe 44 Zeichen fuer Namen
+                if ($line.Length -ge 44) {
+                    $name = $line.Substring(0, 44).Trim()
+                    Write-Host "  - $name" -ForegroundColor White
+                }
+            }
+            Write-Host ""
             
             # Auto-Accept aus Config?
             $autoAccept = $false
@@ -344,12 +403,26 @@ function Update-Chocolatey {
         Write-Host "Aktualisiere Chocolatey selbst...`n" -ForegroundColor $ColorInfo
         choco upgrade chocolatey -y
         
-        # Prüfe auf veraltete Pakete
-        Write-Host "`nPruefe auf veraltete Pakete...`n" -ForegroundColor $ColorInfo
-        
-        $outdated = choco outdated 2>&1
+        # Prüfe auf veraltete Pakete (mit 90 Sek Timeout)
+        Write-Host "`nPruefe auf veraltete Pakete..." -ForegroundColor $ColorInfo
+
+        $job = Start-Job -ScriptBlock { choco outdated 2>&1 }
+        $completed = Wait-Job $job -Timeout 90
+
+        if (-not $completed) {
+            Stop-Job $job -ErrorAction SilentlyContinue
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+            Write-Log "Chocolatey Timeout nach 90 Sekunden" "WARNING"
+            Write-Host "`nChocolatey antwortet nicht (Timeout). Ueberspringe...`n" -ForegroundColor $ColorWarning
+            return
+        }
+
+        $outdated = Receive-Job $job
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+
+        Write-Host ""
         Write-Host $outdated
-        
+
         # Zähle Updates
         $updateCount = ($outdated | Select-String "outdated").Count
         
@@ -402,6 +475,14 @@ function Update-Windows {
     if (-not (Test-PSWindowsUpdateModule)) {
         Write-Log "PSWindowsUpdate Modul nicht gefunden!" "ERROR"
         Write-Host "PSWindowsUpdate Modul ist nicht installiert!`n" -ForegroundColor $ColorError
+
+        # PowerShell Version anzeigen
+        $psVersion = $PSVersionTable.PSVersion.Major
+        Write-Host "Aktuelle PowerShell Version: $psVersion" -ForegroundColor $ColorInfo
+        if ($psVersion -ge 7) {
+            Write-Host "Hinweis: PowerShell 7+ nutzt eigene Module (nicht kompatibel mit PS 5.1)`n" -ForegroundColor $ColorWarning
+        }
+
         Write-Host "Installation:" -ForegroundColor $ColorInfo
         Write-Host "Install-Module -Name PSWindowsUpdate -Force -Scope CurrentUser`n" -ForegroundColor $ColorInfo
         
@@ -428,10 +509,26 @@ function Update-Windows {
         # Modul importieren
         Import-Module PSWindowsUpdate -ErrorAction Stop
         
-        Write-Host "Suche nach Windows-Updates...`n" -ForegroundColor $ColorInfo
-        
-        # Suche Updates
-        $updates = Get-WindowsUpdate -MicrosoftUpdate
+        Write-Host "Suche nach Windows-Updates..." -ForegroundColor $ColorInfo
+
+        # Suche Updates (mit 120 Sek Timeout)
+        $job = Start-Job -ScriptBlock {
+            Import-Module PSWindowsUpdate -ErrorAction Stop
+            Get-WindowsUpdate -MicrosoftUpdate
+        }
+        $completed = Wait-Job $job -Timeout 120
+
+        if (-not $completed) {
+            Stop-Job $job -ErrorAction SilentlyContinue
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+            Write-Log "Windows Update Suche Timeout nach 120 Sekunden" "WARNING"
+            Write-Host "`nWindows Update antwortet nicht (Timeout). Ueberspringe...`n" -ForegroundColor $ColorWarning
+            return
+        }
+
+        $updates = Receive-Job $job
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
+        Write-Host ""
         
         if ($updates.Count -eq 0) {
             Write-Host "Keine Windows-Updates verfuegbar.`n" -ForegroundColor $ColorSuccess
@@ -700,7 +797,7 @@ function Show-Menu {
     Clear-Host
     Write-Host "`n"
     Write-Host "============================================" -ForegroundColor $ColorHeader
-    Write-Host "UNIVERSAL UPDATE MANAGER v$ScriptVersion" -ForegroundColor $ColorHeader
+    Write-Host "UNIVERSAL UPDATE MANAGER" -ForegroundColor $ColorHeader
     Write-Host "============================================`n" -ForegroundColor $ColorHeader
     
     Write-Host "1. Alle Updates (Vollstaendig)" -ForegroundColor $ColorInfo
@@ -759,7 +856,7 @@ function Show-SystemInfo {
 function Main {
     # Log-Datei initialisieren
     Write-Log "========================================" "INFO"
-    Write-Log "Universal Update Manager v$ScriptVersion gestartet" "INFO"
+    Write-Log "Update Manager gestartet" "INFO"
     Write-Log "========================================" "INFO"
     
     # Konfiguration laden
